@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Resume Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ─── STYLES ─────────────────────────────────────────────────── */
+const css = `
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f0f2f8;
+    --surface:   #ffffff;
+    --card:      #ffffff;
+    --border:    #e2e6f0;
+    --accent:    #4f46e5;
+    --accent2:   #7c3aed;
+    --green:     #059669;
+    --green-bg:  #ecfdf5;
+    --red:       #dc2626;
+    --red-bg:    #fef2f2;
+    --yellow:    #d97706;
+    --yellow-bg: #fffbeb;
+    --text:      #111827;
+    --muted:     #6b7280;
+    --radius:    16px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .logo {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.5px;
+  }
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+  .header-tag {
+    background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+    color: var(--accent2);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 4px 12px;
+    border-radius: 99px;
+    text-transform: uppercase;
+  }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 56px 24px 40px;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    color: var(--muted);
+    font-size: 1.05rem;
+    max-width: 500px;
+    margin: 0 auto 32px;
+    line-height: 1.65;
+  }
+  .hero-steps {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .step-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .step-pill b { color: var(--accent); }
+
+  /* MAIN LAYOUT */
+  .main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* INPUT SECTION */
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  @media(max-width: 680px) {
+    .input-grid { grid-template-columns: 1fr; }
+  }
+  .input-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    transition: border-color 0.2s;
+  }
+  .input-card:focus-within { border-color: var(--accent); }
+  .input-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .input-card-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+  .icon-blue { background: #ede9fe; }
+  .icon-green { background: #dcfce7; }
+  .input-label {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--text);
+  }
+  .input-sublabel {
+    font-size: 0.77rem;
+    color: var(--muted);
+  }
+  textarea {
+    width: 100%;
+    min-height: 220px;
+    background: #f9fafb;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    padding: 14px;
+    outline: none;
+    resize: vertical;
+    line-height: 1.65;
+    transition: border-color 0.18s;
+  }
+  textarea:focus { border-color: var(--accent); background: #fff; }
+  textarea::placeholder { color: #9ca3af; }
+
+  /* KEY INPUT */
+  .api-key-row {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .api-key-row label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .api-key-row input {
+    flex: 1;
+    min-width: 200px;
+    background: #f9fafb;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.18s;
+  }
+  .api-key-row input:focus { border-color: var(--accent); background: #fff; }
+  .key-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    flex-basis: 100%;
+    padding-left: 2px;
+  }
+  .key-hint a { color: var(--accent); text-decoration: none; }
+  .key-hint a:hover { text-decoration: underline; }
+
+  /* ANALYZE BUTTON */
+  .analyze-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 32px;
+    letter-spacing: -0.2px;
+    box-shadow: 0 4px 14px rgba(79,70,229,0.35);
+  }
+  .analyze-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79,70,229,0.45);
+  }
+  .analyze-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* LOADING */
+  .loading-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 48px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--muted); font-size: 0.95rem; }
+  .loading-text b { color: var(--accent); }
+
+  /* RESULTS */
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .results-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .re-analyze-btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .re-analyze-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* SCORE CARD */
+  .score-banner {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: var(--radius);
+    padding: 32px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .score-circle {
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 3px solid rgba(255,255,255,0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .score-num {
+    font-size: 2.4rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .score-pct { font-size: 0.8rem; opacity: 0.8; }
+  .score-info h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: 6px; }
+  .score-info p { opacity: 0.85; font-size: 0.92rem; line-height: 1.55; max-width: 480px; }
+
+  /* RESULT CARDS GRID */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  @media(max-width: 680px) {
+    .results-grid { grid-template-columns: 1fr; }
+  }
+  .result-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+  .result-card-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  /* KEYWORD CHIPS */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 5px 13px;
+    border-radius: 99px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .chip-green { background: var(--green-bg); color: var(--green); border: 1px solid #a7f3d0; }
+  .chip-red   { background: var(--red-bg);   color: var(--red);   border: 1px solid #fecaca; }
+  .chip-yellow{ background: var(--yellow-bg);color: var(--yellow);border: 1px solid #fde68a; }
+
+  /* SUGGESTIONS LIST */
+  .suggestions-list { list-style: none; display: flex; flex-direction: column; gap: 11px; }
+  .suggestion-item {
+    display: flex;
+    gap: 11px;
+    align-items: flex-start;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .suggestion-dot {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #ede9fe;
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* SCORE BAR */
+  .score-bars { display: flex; flex-direction: column; gap: 14px; }
+  .score-bar-row {}
+  .score-bar-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+  }
+  .score-bar-label { font-weight: 600; color: var(--text); }
+  .score-bar-val { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .score-bar-track {
+    height: 8px;
+    background: #f3f4f6;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* VERDICT CARD */
+  .verdict-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+  .verdict-text {
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  /* ERROR */
+  .error-card {
+    background: var(--red-bg);
+    border: 1.5px solid #fecaca;
+    border-radius: var(--radius);
+    padding: 22px;
+    color: var(--red);
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 28px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+  footer span { color: var(--accent); font-weight: 600; }
+`;
+
+/* ─── SCORE BAR COMPONENT ────────────────────────────────────── */
+function ScoreBar({ label, value, color }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => { setTimeout(() => setWidth(value), 200); }, [value]);
+  return (
+    <div className="score-bar-row">
+      <div className="score-bar-meta">
+        <span className="score-bar-label">{label}</span>
+        <span className="score-bar-val" style={{ color }}>{value}%</span>
+      </div>
+      <div className="score-bar-track">
+        <div className="score-bar-fill" style={{ width: width + '%', background: color }} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── MAIN APP ───────────────────────────────────────────────── */
+function App() {
+  const [resume, setResume]     = useState('');
+  const [jobDesc, setJobDesc]   = useState('');
+  const [apiKey, setApiKey]     = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [result, setResult]     = useState(null);
+  const [error, setError]       = useState('');
+  const resultsRef              = useRef(null);
+
+  async function analyze() {
+    if (!resume.trim())  { setError('Please paste your resume text.'); return; }
+    if (!jobDesc.trim()) { setError('Please paste the job description.'); return; }
+    if (!apiKey.trim())  { setError('Please enter your Anthropic API key.'); return; }
+    setError('');
+    setLoading(true);
+    setResult(null);
+
+    const prompt = `You are an expert recruiter and career coach. Analyze this resume against the job description.
+
+RESUME:
+${resume}
+
+JOB DESCRIPTION:
+${jobDesc}
+
+Respond ONLY with a valid JSON object (no markdown, no extra text) in this exact shape:
+{
+  "score": <number 0-100>,
+  "verdict": "<2-3 sentence overall assessment>",
+  "matchedKeywords": ["keyword1", "keyword2", ...],
+  "missingKeywords": ["keyword1", "keyword2", ...],
+  "suggestions": ["suggestion1", "suggestion2", "suggestion3", "suggestion4", "suggestion5"],
+  "skillsScore": <number 0-100>,
+  "experienceScore": <number 0-100>,
+  "formatScore": <number 0-100>,
+  "keywordScore": <number 0-100>
+}`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || 'API error ' + res.status);
+      }
+
+      const data = await res.json();
+      const text = data.content[0].text.trim();
+      const clean = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      setResult(parsed);
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } catch (e) {
+      setError('Error: ' + e.message + '. Check your API key and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function getScoreColor(s) {
+    if (s >= 75) return '#059669';
+    if (s >= 50) return '#d97706';
+    return '#dc2626';
+  }
+  function getScoreLabel(s) {
+    if (s >= 75) return 'Strong Match 🎯';
+    if (s >= 50) return 'Moderate Match ⚡';
+    return 'Needs Work 🔧';
+  }
+
+  return (
+    <>
+      <style>{css}</style>
+
+      <header className="header">
+        <div className="logo">
+          <div className="logo-icon">🤖</div>
+          AI Resume Analyzer
+        </div>
+        <div className="header-tag">Powered by Claude AI</div>
+      </header>
+
+      <div className="hero">
+        <h1>Get your resume <span>AI-analyzed</span><br/>in seconds</h1>
+        <p>Paste your resume and a job description. Get an instant match score, missing keywords, and actionable suggestions.</p>
+        <div className="hero-steps">
+          <div className="step-pill"><b>1</b> Paste Resume</div>
+          <div className="step-pill">→</div>
+          <div className="step-pill"><b>2</b> Paste Job Description</div>
+          <div className="step-pill">→</div>
+          <div className="step-pill"><b>3</b> Get AI Analysis</div>
+        </div>
+      </div>
+
+      <div className="main">
+
+        {/* API KEY */}
+        <div className="api-key-row">
+          <label>🔑 Anthropic API Key</label>
+          <input
+            type="password"
+            placeholder="sk-ant-api03-..."
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+          />
+          <span className="key-hint">
+            Free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> · Your key is never stored or sent anywhere except Anthropic's servers.
+          </span>
+        </div>
+
+        {/* INPUTS */}
+        <div className="input-grid">
+          <div className="input-card">
+            <div className="input-card-header">
+              <div className="input-card-icon icon-blue">📄</div>
+              <div>
+                <div className="input-label">Your Resume</div>
+                <div className="input-sublabel">Paste your full resume text</div>
+              </div>
+            </div>
+            <textarea
+              placeholder="John Doe&#10;Software Developer&#10;&#10;Skills: React, JavaScript, Node.js, Python...&#10;&#10;Experience:&#10;Software Intern at XYZ Corp (2023)&#10;- Built REST APIs using Node.js..."
+              value={resume}
+              onChange={e => setResume(e.target.value)}
+            />
+          </div>
+
+          <div className="input-card">
+            <div className="input-card-header">
+              <div className="input-card-icon icon-green">💼</div>
+              <div>
+                <div className="input-label">Job Description</div>
+                <div className="input-sublabel">Paste the job posting text</div>
+              </div>
+            </div>
+            <textarea
+              placeholder="We are looking for a Full Stack Developer...&#10;&#10;Requirements:&#10;- 1+ years of React experience&#10;- Strong JavaScript skills&#10;- Experience with REST APIs&#10;- Familiarity with Git..."
+              value={jobDesc}
+              onChange={e => setJobDesc(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* ERROR */}
+        {error && (
+          <div className="error-card">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* ANALYZE BUTTON */}
+        <button className="analyze-btn" onClick={analyze} disabled={loading}>
+          {loading ? '⏳ Analyzing your resume...' : '🚀 Analyze My Resume'}
+        </button>
+
+        {/* LOADING */}
+        {loading && (
+          <div className="loading-card">
+            <div className="spinner" />
+            <div className="loading-text">
+              <b>Claude AI</b> is reading your resume and job description...<br/>
+              <span style={{fontSize:'0.82rem', marginTop:8, display:'block'}}>This takes about 5–10 seconds</span>
+            </div>
+          </div>
+        )}
+
+        {/* RESULTS */}
+        {result && (
+          <div ref={resultsRef}>
+            <div className="results-header">
+              <div className="results-title">📊 Analysis Results</div>
+              <button className="re-analyze-btn" onClick={() => setResult(null)}>← Analyze Another</button>
+            </div>
+
+            {/* SCORE BANNER */}
+            <div className="score-banner">
+              <div className="score-circle">
+                <div className="score-num">{result.score}</div>
+                <div className="score-pct">/ 100</div>
+              </div>
+              <div className="score-info">
+                <h2>{getScoreLabel(result.score)}</h2>
+                <p>{result.verdict}</p>
+              </div>
+            </div>
+
+            {/* KEYWORDS */}
+            <div className="results-grid">
+              <div className="result-card">
+                <div className="result-card-title">✅ Matched Keywords</div>
+                <div className="chips">
+                  {(result.matchedKeywords || []).map((k, i) => (
+                    <span key={i} className="chip chip-green">{k}</span>
+                  ))}
+                  {(!result.matchedKeywords?.length) && <span style={{color:'#9ca3af',fontSize:'0.85rem'}}>None found</span>}
+                </div>
+              </div>
+
+              <div className="result-card">
+                <div className="result-card-title">❌ Missing Keywords</div>
+                <div className="chips">
+                  {(result.missingKeywords || []).map((k, i) => (
+                    <span key={i} className="chip chip-red">{k}</span>
+                  ))}
+                  {(!result.missingKeywords?.length) && <span style={{color:'#9ca3af',fontSize:'0.85rem'}}>All keywords matched!</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* SCORES + SUGGESTIONS */}
+            <div className="results-grid">
+              <div className="result-card">
+                <div className="result-card-title">📈 Breakdown Scores</div>
+                <div className="score-bars">
+                  <ScoreBar label="Skills Match"      value={result.skillsScore     || 0} color="#4f46e5" />
+                  <ScoreBar label="Experience Match"  value={result.experienceScore || 0} color="#7c3aed" />
+                  <ScoreBar label="Keyword Coverage"  value={result.keywordScore    || 0} color="#0891b2" />
+                  <ScoreBar label="Resume Format"     value={result.formatScore     || 0} color="#059669" />
+                </div>
+              </div>
+
+              <div className="result-card">
+                <div className="result-card-title">💡 Improvement Suggestions</div>
+                <ul className="suggestions-list">
+                  {(result.suggestions || []).map((s, i) => (
+                    <li key={i} className="suggestion-item">
+                      <div className="suggestion-dot">{i + 1}</div>
+                      <span>{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </div>
+
+      <footer>
+        Built with ❤️ by <span>You</span> · AI Resume Analyzer · Powered by Claude AI
+      </footer>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
